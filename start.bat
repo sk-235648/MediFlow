@@ -17,3 +17,4 @@ echo - Frontend UI: http://localhost:3000
 echo - Backend Docs: http://localhost:8000/docs
 echo.
 pause
+

@@ -50,6 +50,11 @@ export default function Home() {
     });
   };
 
+  const handleStartTriage = () => {
+    setThoughts([]);
+    setEsiCard(null);
+  };
+
   const handleNewThought = (thought: AgentThought) => {
     setThoughts((prev) => [...prev, thought]);
   };
@@ -86,6 +91,7 @@ export default function Home() {
               vitals={vitals}
               onNewThought={handleNewThought}
               onNewAssessment={setEsiCard}
+              onStartTriage={handleStartTriage}
               isProcessing={isProcessing}
               setIsProcessing={setIsProcessing}
               activePrompt={activePrompt}

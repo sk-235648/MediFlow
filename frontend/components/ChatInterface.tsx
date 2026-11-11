@@ -16,6 +16,7 @@ interface ChatInterfaceProps {
   vitals: VitalsState;
   onNewThought: (thought: AgentThought) => void;
   onNewAssessment: (card: EsiCardData) => void;
+  onStartTriage?: () => void;
   setIsProcessing: (loading: boolean) => void;
   isProcessing: boolean;
   activePrompt: string;
@@ -26,6 +27,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   vitals,
   onNewThought,
   onNewAssessment,
+  onStartTriage,
   setIsProcessing,
   isProcessing,
   activePrompt,
@@ -67,9 +69,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setInput('');
     setActivePrompt('');
     setIsProcessing(true);
+    onStartTriage?.();
 
     // Prepare assistant placeholder message
-    const assistantMsgIndex = messages.length + 1;
     setMessages((prev) => [
       ...prev,
       {
@@ -106,6 +108,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      let currentEvent = 'message';
 
       if (reader) {
         while (true) {
@@ -116,7 +119,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           const lines = buffer.split('\n');
           buffer = lines.pop() || '';
 
-          let currentEvent = 'message';
           for (const line of lines) {
             if (line.startsWith('event:')) {
               currentEvent = line.replace('event:', '').trim();
@@ -130,12 +132,17 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   onNewThought(parsed);
                 } else if (currentEvent === 'token') {
                   setMessages((prev) => {
-                    const copy = [...prev];
-                    const target = copy[copy.length - 1];
-                    if (target && target.role === 'assistant') {
-                      target.content += parsed.text || '';
-                    }
-                    return copy;
+                    if (prev.length === 0) return prev;
+                    const lastIdx = prev.length - 1;
+                    const last = prev[lastIdx];
+                    if (last.role !== 'assistant') return prev;
+                    return [
+                      ...prev.slice(0, lastIdx),
+                      {
+                        ...last,
+                        content: last.content + (parsed.text || '')
+                      }
+                    ];
                   });
                 } else if (currentEvent === 'assessment') {
                   onNewAssessment(parsed);
@@ -152,12 +159,17 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     } catch (error) {
       console.error('Triage stream error:', error);
       setMessages((prev) => {
-        const copy = [...prev];
-        const target = copy[copy.length - 1];
-        if (target && target.role === 'assistant') {
-          target.content = '⚠️ Connection error contacting the MediFlow backend engine. Please ensure the FastAPI server is running on port 8000.';
-        }
-        return copy;
+        if (prev.length === 0) return prev;
+        const lastIdx = prev.length - 1;
+        const last = prev[lastIdx];
+        if (last.role !== 'assistant') return prev;
+        return [
+          ...prev.slice(0, lastIdx),
+          {
+            ...last,
+            content: '⚠️ Connection error contacting the MediFlow backend engine. Please ensure the FastAPI server is running on port 8000.'
+          }
+        ];
       });
     } finally {
       setIsProcessing(false);
