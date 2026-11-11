@@ -1,0 +1,3 @@
+# MediFlow Robots
+User-agent: *
+Allow: /

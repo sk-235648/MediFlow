@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mediflow-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - LLM_PROVIDER=mock
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - SAFETY_MAX_RETRY_LOOPS=2
+      - HALLUCINATION_THRESHOLD=0.20
+    volumes:
+      - ./backend/app/rag/knowledge_base:/app/app/rag/knowledge_base:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:8000
+    container_name: mediflow-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+
+networks:
+  default:
+    name: mediflow-network
