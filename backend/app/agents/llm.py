@@ -64,15 +64,31 @@ def generate_llm_response(
             logger.info("GEMINI_API_KEY not set. Using offline clinical fallback.")
             return None
         try:
-            import google.generativeai as genai
-            genai.configure(api_key=settings.GEMINI_API_KEY)
-            model = genai.GenerativeModel(
-                model_name=settings.GEMINI_MODEL,
-                system_instruction=system_instruction
-            )
-            response = model.generate_content(user_prompt)
-            if response and response.text:
-                return response.text.strip()
+            import httpx
+            model_name = settings.GEMINI_MODEL or "gemini-3.5-flash-lite"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={settings.GEMINI_API_KEY}"
+            payload = {
+                "system_instruction": {
+                    "parts": [{"text": system_instruction}]
+                },
+                "contents": [
+                    {"parts": [{"text": user_prompt}]}
+                ],
+                "generationConfig": {
+                    "temperature": 0.2,
+                    "maxOutputTokens": 600
+                }
+            }
+            with httpx.Client(timeout=15.0) as client:
+                res = client.post(url, json=payload)
+                if res.status_code == 200:
+                    data = res.json()
+                    candidates = data.get("candidates", [])
+                    if candidates and "content" in candidates[0]:
+                        parts = candidates[0]["content"].get("parts", [])
+                        if parts and "text" in parts[0]:
+                            return parts[0]["text"].strip()
+                logger.warning(f"Gemini API returned status {res.status_code}: {res.text[:200]}")
         except Exception as e:
             logger.warning(f"Gemini API call failed, falling back to mock engine: {e}")
             return None

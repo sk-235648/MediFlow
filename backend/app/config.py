@@ -1,8 +1,13 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from backend or root .env
+load_dotenv(BASE_DIR / ".env")
+load_dotenv(BASE_DIR.parent / ".env")
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "MediFlow – Autonomous Healthcare Triage Agent"
